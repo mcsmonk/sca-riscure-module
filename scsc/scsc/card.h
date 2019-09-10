@@ -6,6 +6,15 @@
 
 pt_device card_ptd;
 int card_ret_ptd;
+int card_ret_ptd_rx;
+int card_ret_ptd_tx;
+
+extern const unsigned char command_selectdf[];
+extern const unsigned int command_len_selectdf;
+extern const unsigned char command_getencipher[];
+extern const unsigned int command_len_getencipher;
+extern const unsigned char command_getresponse[];
+extern const unsigned int command_len_getresponse;
 
 #define CARD_PRINT_FN_RET(func,ret) printf("\t\t" #func "\n\t\t\tret = [%d] // ", ret)
 #define CARD_PRINT_UCHAR(x) printf(#x " : %u\n", x)

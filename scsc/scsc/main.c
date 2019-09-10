@@ -14,7 +14,7 @@ int main(int argc, char* argv[])
 	card_pt_device_open();
 	card_pt_device_print_info();
 	card_pt_device_power_on();
-	card_pt_device_coldreset();
+	//card_pt_device_coldreset();
 	card_pt_device_print_channel();
 
 	card_pt_device_warmreset();
