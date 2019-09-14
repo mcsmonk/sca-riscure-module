@@ -1,6 +1,8 @@
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <time.h>
+#include <direct.h>
 
 #include "sca.h"
 
@@ -16,10 +18,35 @@ char buf_fd_tr[1024];
 
 int rv;
 
+void sca_fprintf(FILE* fp, const char* format, ...)
+{
+	va_list ap;
+	char buf[4096];
+
+	va_start(ap, format);
+	vsprintf(buf, format, ap);
+	va_end(ap);
+
+	fprintf(stderr, "%s", buf);
+	if (fp != NULL) {
+		fprintf(fp, "%s", buf);
+	}
+}
+
 int open_fd()
 {
 	time_t timer;
 	struct tm* time_tmp;
+
+	int ret;
+	
+	ret = mkdir("trace");
+	if (ret == 0) {
+		fprintf(stderr, "mkdir folder : %s\n", FILE_DIR);
+	}
+	else {
+		fprintf(stderr, "folder already exist ... maybe ?\n");
+	}
 
 	timer = time(NULL);
 	time_tmp = localtime(&timer);
@@ -85,8 +112,23 @@ void close_fd()
 
 int set_dso()
 {
-	rv = LeCroyDSOConnect_wrapper(DSO_IPADDR, fd_log);
+	rv = LeCroyDSOConnect_wrapper(DSO_IPADDR);
 	//LeCroyDSOStoreWaveformAllPoints(DSO_CHANNEL, buf_trace, &buf_trace_len);
-	rv = LeCroyDSODisconnect_wrapper(fd_log);
+	rv = LeCroyDSODisconnect_wrapper();
 	return 0;
+}
+
+void test()
+{
+	int ret;
+	
+	ret = open_fd();
+	if (ret) goto err;
+
+	ret = sc_device_open();
+	if (ret) goto err;
+
+err:
+	ret = sc_device_close();
+	close_fd();
 }

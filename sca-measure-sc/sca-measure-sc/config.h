@@ -7,6 +7,8 @@
 
 //////////////////////////////////////////////////////////////
 
+#define SCDEVICENUM			0
+
 #define TRACE_NUM			10
 #define TRACE_LEN_MAX		DSO_BUF_LEN_MAX
 

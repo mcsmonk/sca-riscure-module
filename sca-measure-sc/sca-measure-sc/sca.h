@@ -3,8 +3,9 @@
 #ifndef __SCA_H__
 #define __SCA_H__
 
-#include "config.h"
 #include "LeCroyDSO.h"
+#include "config.h"
+#include "smartcard.h"
 
 extern FILE* fd_pt;
 extern FILE* fd_ct;
@@ -18,10 +19,14 @@ extern char buf_fd_tr[];
 
 extern int rv;
 
+void sca_fprintf(FILE* fp, const char* format, ...);
+
 int open_fd();
 void close_fd();
 
-int LeCroyDSOConnect_wrapper(const char* ip_add, FILE* fp);
-int LeCroyDSODisconnect_wrapper(FILE* fp);
+int LeCroyDSOConnect_wrapper(const char* ip_add);
+int LeCroyDSODisconnect_wrapper();
+
+void test();
 
 #endif //__SCA_H__
