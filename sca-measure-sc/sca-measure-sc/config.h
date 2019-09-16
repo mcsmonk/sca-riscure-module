@@ -24,6 +24,9 @@
 #define FILE_PREFIX_LOG		FILE_PREFIX##"log"
 #define FILE_PREFIX_TR		FILE_PREFIX##"trace"
 
+#define TIMEOUT				800
+#define TIMEOUT_ATR			200
+
 //////////////////////////////////////////////////////////////
 
 #endif //__CONFIG_H__

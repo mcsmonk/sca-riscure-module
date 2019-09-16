@@ -128,6 +128,51 @@ void test()
 	ret = sc_device_open();
 	if (ret) goto err;
 
+	ret = sc_card_power_on();
+	if (ret) goto err;
+
+	ret = sc_write2(&sc_ptd, (unsigned char*) APDU_selectDF, APDU_selectDF[4] + 5);
+	if (ret) goto err;
+
+	Sleep(TIMEOUT);
+
+	ret = sc_read(&sc_ptd, sc_buf1, 0, &len_sc_buf1);
+	if (ret) goto err;
+	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
+
+	Sleep(TIMEOUT);
+
+	ret = sc_read(&sc_ptd, sc_buf1, 0, &len_sc_buf1);
+	if (ret) goto err;
+	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
+
+	Sleep(TIMEOUT);
+
+	ret = sc_read(&sc_ptd, sc_buf1, 0, &len_sc_buf1);
+	if (ret) goto err;
+	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
+
+	//ret = sc_write1(&sc_ptd, (unsigned char*)APDU_getResponse, sc_buf1[2], NULL);
+	//if (ret) goto err;
+
+	ret = sc_write1(&sc_ptd, (unsigned char*)APDU_getResponse, 0x0A, NULL);
+	if (ret) goto err;
+
+	Sleep(TIMEOUT);
+
+	ret = sc_read(&sc_ptd, sc_buf1, 0, &len_sc_buf1);
+	if (ret) goto err;
+	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
+
+	Sleep(TIMEOUT);
+
+	ret = sc_read(&sc_ptd, sc_buf1, 0, &len_sc_buf1);
+	if (ret) goto err;
+	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
+
+	ret = sc_card_power_off();
+	if (ret) goto err;
+
 err:
 	ret = sc_device_close();
 	close_fd();

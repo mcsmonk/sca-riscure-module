@@ -10,12 +10,18 @@ int sc_ret_rx;
 int sc_ret_tx;
 
 BOOL sc_flag_inserted = FALSE;
+BOOL sc_flag_poweron = FALSE;
+BOOL sc_flag_rx_error = FALSE;
+BOOL sc_flag_tx_error = FALSE;
+unsigned int sc_tx_error_index = FALSE;
 
 double sc_v = 5.0, sc_vmin, sc_vmax, sc_vstep;
 double sc_f = 1.0, sc_fmin, sc_fmax, sc_fstep;
 
 unsigned char sc_buf1[BUFLEN];
+unsigned int len_sc_buf1;
 unsigned char sc_buf2[BUFLEN];
+unsigned int len_sc_buf2;
 
 int sc_device_open()
 {
@@ -43,7 +49,11 @@ int sc_device_open()
 	sc_ret = pt_open(&sc_ptd);
 	if (sc_ret == PT_OK) {
 		sca_fprintf(fd_log, "pt_open success\n");
+
 		sc_ret = sc_device_print_info();
+		if (sc_ret) return -1;
+
+		sc_ret = sc_card_setting();
 		if (sc_ret) return -1;
 	}
 	else {
@@ -57,7 +67,6 @@ int sc_device_open()
 int sc_device_close()
 {
 	sc_ret = pt_close(&sc_ptd);
-
 	if (sc_ret != PT_OK) {
 		sca_fprintf(fd_log, "pt_close fail [0x%02X] // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
 		return -1;
@@ -141,24 +150,421 @@ err:
 	return -1;
 }
 
-int sc_card_power_on()
+int sc_card_setting()
 {
+	//sc_ret = pt_set_f_d(&sc_ptd, 372, 1);
+	//if (sc_ret != PT_OK) {
+	//	sca_fprintf(fd_log, "Error : pt_set_f_d [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+	//	goto err;
+	//}
+	//sca_fprintf(fd_log, "[setting] F/D to 372\n");
+
+	//sc_ret = pt_set_cgt(&sc_ptd, 12);
+	//if (sc_ret != PT_OK) {
+	//	sca_fprintf(fd_log, "Error : pt_set_cgt [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+	//	goto err;
+	//}
+	//sca_fprintf(fd_log, "[setting] CGT to 12\n");
+
+	//sc_ret = pt_set_communication_channel(&sc_ptd, SMARTCARD);
+	//if (sc_ret != PT_OK) {
+	//	sca_fprintf(fd_log, "Error : pt_set_communication_channel [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+	//	goto err;
+	//}
+	//sca_fprintf(fd_log, "[setting] Select smart card transceiver as communication channel\n");
+
+	//sc_ret = pt_enable_tx_error_checking(&sc_ptd, FALSE);
+	//if (sc_ret != PT_OK) {
+	//	sca_fprintf(fd_log, "Error : pt_enable_tx_error_checking [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+	//	goto err;
+	//}
+	//sca_fprintf(fd_log, "[setting] Stop transmitter looking at the NACK sent from smart card\n");
+
+	//sc_ret = pt_enable_rx_error_signaling(&sc_ptd, FALSE);
+	//if (sc_ret != PT_OK) {
+	//	sca_fprintf(fd_log, "Error : pt_enable_rx_error_signaling [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+	//	goto err;
+	//}
+	//sca_fprintf(fd_log, "[setting] Stop receiver signaling a NACK to smart card in case of parity error\n");
+
+	//sc_ret = pt_set_tx_error_handling(&sc_ptd, CONTINUE);
+	//if (sc_ret != PT_OK) {
+	//	sca_fprintf(fd_log, "Error : pt_set_tx_error_handling [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+	//	goto err;
+	//}
+	//sca_fprintf(fd_log, "[setting] Continue transmission if an NACK is signaled from smart card\n");
+
+	//sc_ret = pt_set_read_timeout(&sc_ptd, TIMEOUT);
+	//if (sc_ret != PT_OK) {
+	//	sca_fprintf(fd_log, "Error : pt_set_read_timeout [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+	//	goto err;
+	//}
+	//sca_fprintf(fd_log, "[setting] timeout %d\n", TIMEOUT);
+
+	//sc_ret = pt_set_write_timeout(&sc_ptd, TIMEOUT);
+	//if (sc_ret != PT_OK) {
+	//	sca_fprintf(fd_log, "Error : pt_set_write_timeout [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+	//	goto err;
+	//}
+	//sca_fprintf(fd_log, "[setting] timeout %d\n", TIMEOUT);
+
+	sc_ret = pt_set_gain(&sc_ptd, 100);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_set_gain [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[setting] Gain to 100%\n");
+
+	sc_ret = pt_set_offset(&sc_ptd, 0);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_set_offset [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[setting] Offset to 0.0v\n");
+
+	sc_ret = pt_set_armed(&sc_ptd, FALSE);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_set_armed [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[setting] Disarm trigger, DC/DC shutdown events\n");
+
+	sc_ret = pt_set_trigger_delay(&sc_ptd, 0);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_set_trigger_delay [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[setting] Trigger delay set to 0\n");
+
+	sc_ret = pt_set_dcdc_off_delay(&sc_ptd, 0);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_set_dcdc_off_delay [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[setting] DC/DC shutdown delay set to 0\n");
+
+	sc_ret = pt_set_dcdc_off_duration(&sc_ptd, 5000000);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_set_dcdc_off_duration [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[setting] DC/DC shutdown duration set to 5 second\n");
+
 	return 0;
 err:
+	return -1;
+}
+
+int sc_card_setting2()
+{
+	sc_ret = pt_enable_tx_error_checking(&sc_ptd, TRUE);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_enable_tx_error_checking [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[setting] Enable transmitter inspecting NACK sent from smart card\n");
+
+	sc_ret = pt_enable_rx_error_signaling(&sc_ptd, TRUE);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_enable_rx_error_signaling [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[setting] Enable receiver signaling NACK to smart card\n");
+
+	sc_ret = pt_set_tx_error_handling(&sc_ptd, HALT);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_set_tx_error_handling [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[setting] Abort transmission as soon as a NACK is detected\n");
+
+	return 0;
+err:
+	return -1;
+}
+
+int sc_card_power_on()
+{
+	sc_ret = pt_is_smartcard_powered(&sc_ptd, &sc_flag_poweron);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_is_smartcard_powered [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[status] sc power %s\n", sc_flag_poweron ? "on" : "off");
+
+	sc_ret = pt_smartcard_powerup(&sc_ptd);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_smartcard_powerup [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "now sc power on\n");
+
+	sc_ret = pt_is_smartcard_powered(&sc_ptd, &sc_flag_poweron);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_is_smartcard_powered [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[status] sc power %s\n", sc_flag_poweron ? "on" : "off");
+
+	if (sc_ret == PT_OK) {
+		Sleep(TIMEOUT_ATR);
+
+		sc_read(&sc_ptd, sc_buf1, 0, &len_sc_buf1);
+		if (sc_ret_rx != PT_OK) {
+			sca_fprintf(fd_log, "Error : pt_get_rx_error_status [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+			goto err;
+		}
+		if (sc_flag_rx_error == TRUE) {
+			sca_fprintf(fd_log, "Error : pt_get_rx_error_status [flag = TRUE]  // %s ( %d line )\n", __FILE__, __LINE__);
+			goto err;
+		}
+		if (sc_ret != PT_OK) {
+			sca_fprintf(fd_log, "Error : pt_read [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+			goto err;
+		}
+		sc_card_print_ATR(sc_buf1, len_sc_buf1);
+
+		sc_ret = sc_card_setting2();
+		if (sc_ret) goto err;
+	}
+	return 0;
+err:
+	sc_card_power_off();
 	return -1;
 }
 
 int sc_card_power_off()
 {
+	if (sc_flag_poweron == FALSE) return 0;
+
+	sc_ret = pt_is_smartcard_powered(&sc_ptd, &sc_flag_poweron);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_is_smartcard_powered [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[status] sc power %s\n", sc_flag_poweron ? "on" : "off");
+
+	sc_ret = pt_smartcard_powerdown(&sc_ptd);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_smartcard_powerdown [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "now sc power off\n");
+
+	sc_ret = pt_is_smartcard_powered(&sc_ptd, &sc_flag_poweron);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_is_smartcard_powered [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[status] sc power %s\n", sc_flag_poweron ? "on" : "off");
+
 	return 0;
 err:
 	return -1;
 }
 
-//void card_pt_device_coldreset();
-//void card_pt_device_warmreset();
-//void card_pt_device_print_channel();
-//void card_pt_device_select_DF();
-//void card_print_APDU_Lc(unsigned char buf[], unsigned int buf_len);
-//void card_print_APDU_Le(unsigned char buf[], unsigned int buf_len);
-//void card_print_RESPONSE(unsigned char buf[], unsigned int buf_len);
+int sc_card_warmreset()
+{
+	sc_ret = pt_smartcard_warm_reset(&sc_ptd);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_smartcard_warm_reset [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "now warm reset\n");
+
+	sc_ret = pt_is_smartcard_powered(&sc_ptd, &sc_flag_poweron);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_is_smartcard_powered [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[status] sc power %s\n", sc_flag_poweron ? "on" : "off");
+
+	if (sc_ret == PT_OK) {
+		Sleep(TIMEOUT_ATR);
+
+		sc_read(&sc_ptd, sc_buf1, 0, &len_sc_buf1);
+		if (sc_ret_rx != PT_OK) {
+			sca_fprintf(fd_log, "Error : pt_get_rx_error_status [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+			goto err;
+		}
+		if (sc_flag_rx_error == TRUE) {
+			sca_fprintf(fd_log, "Error : pt_get_rx_error_status [flag = TRUE]  // %s ( %d line )\n", __FILE__, __LINE__);
+			goto err;
+		}
+		if (sc_ret != PT_OK) {
+			sca_fprintf(fd_log, "Error : pt_read [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+			goto err;
+		}
+		sc_card_print_ATR(sc_buf1, len_sc_buf1);
+
+		sc_ret = sc_card_setting2();
+		if (sc_ret) goto err;
+	}
+	return 0;
+err:
+	sc_card_power_off();
+	return -1;
+}
+
+int sc_card_coldreset()
+{
+	sc_ret = pt_smartcard_cold_reset(&sc_ptd);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_smartcard_warm_reset [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "now warm reset\n");
+
+	sc_ret = pt_is_smartcard_powered(&sc_ptd, &sc_flag_poweron);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_is_smartcard_powered [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[status] sc power %s\n", sc_flag_poweron ? "on" : "off");
+
+	if (sc_ret == PT_OK) {
+		Sleep(TIMEOUT_ATR);
+
+		sc_read(&sc_ptd, sc_buf1, 0, &len_sc_buf1);
+		if (sc_ret_rx != PT_OK) {
+			sca_fprintf(fd_log, "Error : pt_get_rx_error_status [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+			goto err;
+		}
+		if (sc_flag_rx_error == TRUE) {
+			sca_fprintf(fd_log, "Error : pt_get_rx_error_status [flag = TRUE]  // %s ( %d line )\n", __FILE__, __LINE__);
+			goto err;
+		}
+		if (sc_ret != PT_OK) {
+			sca_fprintf(fd_log, "Error : pt_read [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+			goto err;
+		}
+		sc_card_print_ATR(sc_buf1, len_sc_buf1);
+
+		sc_ret = sc_card_setting2();
+		if (sc_ret) goto err;
+	}
+	return 0;
+err:
+	sc_card_power_off();
+	return -1;
+}
+
+void sc_card_print_APDU_Lc(unsigned char buf[], int buf_len)
+{
+	int i;
+	sca_fprintf(fd_log, "APDU >> ");
+
+	if (buf_len < 5) {
+		for (i = 0; i < buf_len; i++) {
+			sca_fprintf(fd_log, "%02X ", buf[i]);
+		}
+		sca_fprintf(fd_log, "--> incorrect apdu !\n");
+	}
+	else if (buf[4] + 5 != buf_len) {
+		for (i = 0; i < 5; i++) {
+			sca_fprintf(fd_log, "%02X ", buf[i]);
+		}
+		sca_fprintf(fd_log, "- ");
+		for (i = 5; i < buf_len; i++) {
+			sca_fprintf(fd_log, "%02X ", buf[i]);
+		}
+		sca_fprintf(fd_log, "--> incorrect apdu !\n");
+	}
+
+	for (i = 0; i < 5; i++) {
+		sca_fprintf(fd_log, "%02X ", buf[i]);
+	}
+	sca_fprintf(fd_log, "- ");
+	for (i = 5; i < buf_len; i++) {
+		sca_fprintf(fd_log, "%02X ", buf[i]);
+	}
+	sca_fprintf(fd_log, "\n");
+}
+
+void sc_card_print_APDU_Le(unsigned char buf[], int buf_len)
+{
+	int i;
+	sca_fprintf(fd_log, "APDU >> ");
+
+	if (buf_len < 5) {
+		for (i = 0; i < buf_len; i++) {
+			sca_fprintf(fd_log, "%02X ", buf[i]);
+		}
+		sca_fprintf(fd_log, "--> incorrect apdu !\n");
+	}
+
+	for (i = 0; i < 5; i++) {
+		sca_fprintf(fd_log, "%02X ", buf[i]);
+	}
+	sca_fprintf(fd_log, "\n");
+}
+
+void sc_card_print_ATR(unsigned char buf[], int buf_len)
+{
+	int i;
+	sca_fprintf(fd_log, "ATR  << ");
+
+	for (i = 0; i < buf_len; i++) {
+		sca_fprintf(fd_log, "%02X ", buf[i]);
+	}
+	sca_fprintf(fd_log, "\n");
+}
+
+void sc_card_print_RESPONSE(unsigned char buf[], int buf_len)
+{
+	int i;
+	sca_fprintf(fd_log, "RET  << ");
+
+	if (buf_len < 3) {
+		for (i = 0; i < buf_len; i++) {
+			sca_fprintf(fd_log, "%02X ", buf[i]);
+		}
+		sca_fprintf(fd_log, "--> incorrect response !\n");
+		return;
+	}
+
+	for (i = 0; i < buf_len - 2; i++) {
+		sca_fprintf(fd_log, "%02X ", buf[i]);
+	}
+	sca_fprintf(fd_log, "- ");
+	for (; i < buf_len; i++) {
+		sca_fprintf(fd_log, "%02X ", buf[i]);
+	}
+	sca_fprintf(fd_log, "\n");
+}
+
+int sc_read(pt_device* sc_ptd, unsigned char* response, unsigned int response_len, unsigned int* actual_response_len)
+{
+	memset(response, 0, sizeof(response));
+	sc_ret = pt_read(sc_ptd, response, response_len, actual_response_len);
+	sc_ret_rx = pt_get_rx_error_status(sc_ptd, &sc_flag_rx_error);
+
+	return sc_ret | sc_ret_rx;
+}
+
+int sc_write1(pt_device* sc_ptd, unsigned char* apdu_wo_len, unsigned char apdu_len, unsigned char* apdu_data)
+{
+	memcpy(sc_buf2, apdu_wo_len, 4);
+	sc_buf2[4] = apdu_len;
+	if (apdu_data != NULL)
+		memcpy(sc_buf2 + 5, apdu_data, apdu_len);
+
+	sc_ret = pt_write(sc_ptd, sc_buf2, 5 + apdu_len);
+	sc_ret_tx = pt_get_tx_error_status(sc_ptd, &sc_flag_tx_error, &sc_tx_error_index);
+
+	if (apdu_data != NULL && 4 + apdu_len > 5) sc_card_print_APDU_Lc(sc_buf2, 5 + apdu_len);
+	else sc_card_print_APDU_Le(sc_buf2, 5 + apdu_len);
+
+	return sc_ret | sc_ret_rx;
+}
+
+int sc_write2(pt_device* sc_ptd, unsigned char* apdu, unsigned int len)
+{
+	sc_ret = pt_write(sc_ptd, apdu, len);
+	sc_ret_tx = pt_get_tx_error_status(sc_ptd, &sc_flag_tx_error, &sc_tx_error_index);
+
+	if (len > 5) sc_card_print_APDU_Lc(apdu, len);
+	else sc_card_print_APDU_Le(apdu, len);
+
+	return sc_ret | sc_ret_rx;
+}

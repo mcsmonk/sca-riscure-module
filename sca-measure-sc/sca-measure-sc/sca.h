@@ -3,6 +3,7 @@
 #ifndef __SCA_H__
 #define __SCA_H__
 
+#include "config_APDU.h"
 #include "LeCroyDSO.h"
 #include "config.h"
 #include "smartcard.h"
