@@ -15,8 +15,8 @@ BOOL sc_flag_rx_error = FALSE;
 BOOL sc_flag_tx_error = FALSE;
 unsigned int sc_tx_error_index = FALSE;
 
-double sc_v = 5, sc_vmin, sc_vmax, sc_vstep;
-double sc_f = 4, sc_fmin, sc_fmax, sc_fstep;
+double sc_v = 3.0, sc_vmin, sc_vmax, sc_vstep;
+double sc_f = 1.0, sc_fmin, sc_fmax, sc_fstep;
 
 unsigned char sc_buf1[BUFLEN];
 unsigned int len_sc_buf1;
@@ -288,7 +288,7 @@ int sc_card_power_on()
 	if (sc_ret == PT_OK) {
 		Sleep(TIMEOUT_ATR);
 
-		sc_read(&sc_ptd, sc_buf1, BUFLEN, 0, &len_sc_buf1);
+		sc_read(&sc_ptd, sc_buf1, BUFLEN, 8, &len_sc_buf1);
 		if (sc_ret_rx != PT_OK) {
 			sca_fprintf(fd_log, "Error : pt_get_rx_error_status [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
 			goto err;
@@ -361,7 +361,7 @@ int sc_card_warmreset()
 	if (sc_ret == PT_OK) {
 		Sleep(TIMEOUT_ATR);
 
-		sc_read(&sc_ptd, sc_buf1, BUFLEN, 0, &len_sc_buf1);
+		sc_read(&sc_ptd, sc_buf1, BUFLEN, 8, &len_sc_buf1);
 		if (sc_ret_rx != PT_OK) {
 			sca_fprintf(fd_log, "Error : pt_get_rx_error_status [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
 			goto err;
@@ -404,7 +404,7 @@ int sc_card_coldreset()
 	if (sc_ret == PT_OK) {
 		Sleep(TIMEOUT_ATR);
 
-		sc_read(&sc_ptd, sc_buf1, BUFLEN, 0, &len_sc_buf1);
+		sc_read(&sc_ptd, sc_buf1, BUFLEN, 8, &len_sc_buf1);
 		if (sc_ret_rx != PT_OK) {
 			sca_fprintf(fd_log, "Error : pt_get_rx_error_status [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
 			goto err;
@@ -492,9 +492,16 @@ void sc_card_print_ATR(unsigned char buf[], int buf_len)
 void sc_card_print_RESPONSE(unsigned char buf[], int buf_len)
 {
 	int i;
-	sca_fprintf(fd_log, "RET  << ");
+	sca_fprintf(fd_log, "RET (%4d / %4d)  << ", buf_len, buf_len-2);
 
-	if (buf_len < 3) {
+	if (buf_len == 2 && buf[0] == 0x90 && buf[1] == 0x00) {
+		for (i = 0; i < buf_len; i++) {
+			sca_fprintf(fd_log, "%02X ", buf[i]);
+		}
+		sca_fprintf(fd_log, "\n");
+		return;
+	}
+	else	if (buf_len < 3) {
 		for (i = 0; i < buf_len; i++) {
 			sca_fprintf(fd_log, "%02X ", buf[i]);
 		}
@@ -515,7 +522,7 @@ void sc_card_print_RESPONSE(unsigned char buf[], int buf_len)
 int sc_read(pt_device* sc_ptd, unsigned char* buf, unsigned int buflen, unsigned int response_len, unsigned int* actual_response_len)
 {
 	memset(buf, 0, buflen);
-	sc_ret = pt_read(sc_ptd, buf, response_len, actual_response_len);
+	sc_ret = pt_read(sc_ptd, buf, 1 + response_len + 2, actual_response_len);
 	sc_ret_rx = pt_get_rx_error_status(sc_ptd, &sc_flag_rx_error);
 	sc_ret_tx = pt_get_tx_error_status(sc_ptd, &sc_flag_tx_error, &sc_tx_error_index);
 

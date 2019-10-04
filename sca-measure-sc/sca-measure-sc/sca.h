@@ -7,11 +7,13 @@
 #include "config.h"
 #include "smartcard.h"
 
+extern FILE* fd_key;
 extern FILE* fd_pt;
 extern FILE* fd_ct;
 extern FILE* fd_log;
 extern FILE* fd_tr;
 
+extern char buf_fd_key[];
 extern char buf_fd_pt[];
 extern char buf_fd_ct[];
 extern char buf_fd_log[];

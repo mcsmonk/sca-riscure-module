@@ -6,11 +6,13 @@
 
 #include "sca.h"
 
+FILE* fd_key = NULL;
 FILE* fd_pt = NULL;
 FILE* fd_ct = NULL;
 FILE* fd_log = NULL;
 FILE* fd_tr = NULL;
 
+char buf_fd_key[1024];
 char buf_fd_pt[1024];
 char buf_fd_ct[1024];
 char buf_fd_log[1024];
@@ -18,21 +20,26 @@ char buf_fd_tr[1024];
 
 int rv;
 
+/* ECDH */
+
 unsigned char APDU_test[] = { 0x00, 0x84, 0x00, 0x00, 0x10 };
 
-unsigned char APDU_selectDF[] = { 0x00, 0xA4, 0x04, 0x00, 0x0D, 0xF0, 0x4B, 0x45, 0x59, 0x50, 0x41, 0x49, 0x52, 0x20, 0x43, 0x4E, 0x54, 0x43 };
+unsigned char APDU_selectDF[] = { 0x00, 0xA4, 0x04, 0x00, 0x0D, 0xF0, 0x4B, 0x45, 0x59, 0x50, 0x41, 0x49, 0x52, 0x20, 0x43, 0x4E, 0x54, 0x43, 0x0A };
 unsigned char APDU_getResponse_selectDF[] = { 0x00, 0xC0, 0x00, 0x00, 0x0A };
 
 unsigned char APDU_CtrDrbgClearInternalState[] = { 0x80, 0xBB, 0x00, 0x05, 0x00 };
-unsigned char APDU_CtrDrbgInstantiate[] = { 0x80, 0xAA, 0x00, 0x06, 0x04, 0x00, 0x00, 0x00, 0x00 };
+unsigned char APDU_CtrDrbgInstantiate[] = { 0x80, 0xAA, 0x00, 0x06, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00 };
 unsigned char APDU_CtrDrbgReseed[] = { 0x80, 0xAA, 0x00, 0x07, 0x04, 0x00, 0x00, 0x00, 0x00 };
 
-unsigned char APDU_EcdhKeytokenGen[] = { 0x80, 0xAA, 0x00, 0x1D, 0x06, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+unsigned char APDU_EcdhKeytokenGen[] = { 0x80, 0xAA, 0x00, 0x1D, 0x06, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00 };
 unsigned char APDU_readBinary_0x60[] = { 0x00, 0xB0, 0x00, 0x00, 0x60 };
 
 unsigned char APDU_updateBinary_0x60[5 + 0x60] = { 0x00, 0xD6, 0x00, 0x00, 0x60, };
-unsigned char APDU_EcdhSesKeyGen[] = { 0x80, 0xAA, 0x00, 0x1E, 0x0A, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+unsigned char APDU_EcdhSesKeyGen[] = { 0x80, 0xAA, 0x00, 0x1E, 0x0A, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00 };
 unsigned char APDU_readBinary_0x40[] = { 0x00, 0xB0, 0x00, 0x00, 0x40 };
+
+unsigned char pubkey[0x20 + 0x20 + 0x20]; // X, Y, prikey
+unsigned char seskey[0x20 + 0x20]; // X_s, Y_s
 
 void sca_fprintf(FILE* fp, const char* format, ...)
 {
@@ -67,6 +74,12 @@ int open_fd()
 	timer = time(NULL);
 	time_tmp = localtime(&timer);
 
+	sprintf(buf_fd_key, "%s\\%s-%02d-%02d-%02d-%02d-%02d-%02d.txt",
+		FILE_DIR, FILE_PREFIX_KEY,
+		(time_tmp->tm_year + 1900) % 100, time_tmp->tm_mon + 1, time_tmp->tm_mday,
+		time_tmp->tm_hour, time_tmp->tm_min, time_tmp->tm_sec);
+	fd_key = fopen(buf_fd_key, "w");
+
 	sprintf(buf_fd_pt, "%s\\%s-%02d-%02d-%02d-%02d-%02d-%02d.txt",
 		FILE_DIR, FILE_PREFIX_PT,
 		(time_tmp->tm_year + 1900) % 100, time_tmp->tm_mon + 1, time_tmp->tm_mday,
@@ -91,7 +104,7 @@ int open_fd()
 		time_tmp->tm_hour, time_tmp->tm_min, time_tmp->tm_sec);
 	fd_tr = fopen(buf_fd_tr, "wb");
 
-	if (!fd_pt || !fd_ct || !fd_log || !fd_tr) {
+	if (!fd_key || !fd_pt || !fd_ct || !fd_log || !fd_tr) {
 		fprintf(stderr, "Error : file open fail // %s ( %d line )\n", __FILE__, __LINE__);
 		goto err;
 	}
@@ -105,6 +118,11 @@ err:
 
 void close_fd()
 {
+	if (fd_key) {
+		fclose(fd_key);
+		fd_key = NULL;
+	}
+
 	if (fd_pt) {
 		fclose(fd_pt);
 		fd_pt = NULL;
@@ -154,120 +172,96 @@ void test()
 	//ret = sc_card_coldreset();
 	//while (ret) ret = sc_card_coldreset();
 
-	ret = sc_write2(&sc_ptd, (unsigned char*)APDU_test, sizeof(APDU_test));
-	if (ret) goto err;
+	/* 1. Select DF */
 
-	Sleep(TIMEOUT);
-
-	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 0, &len_sc_buf1);
-	if (ret) goto err;
-	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
-
-	Sleep(TIMEOUT);
-
-	ret = sc_write2(&sc_ptd, (unsigned char*)APDU_readBinary_0x60, sizeof(APDU_readBinary_0x60));
-	if (ret) goto err;
-
-	Sleep(TIMEOUT*5);
-
-	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 0, &len_sc_buf1);
-	if (ret) goto err;
-	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
-
-	Sleep(TIMEOUT);
-
-	ret = sc_write2(&sc_ptd, (unsigned char*)APDU_updateBinary_0x60, sizeof(APDU_updateBinary_0x60));
-	if (ret) goto err;
-
-	Sleep(TIMEOUT * 5);
-
-	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 0, &len_sc_buf1);
-	if (ret) goto err;
-	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
-
-	Sleep(TIMEOUT * 5);
-
-	pt_set_armed(&sc_ptd, TRUE);
 	ret = sc_write2(&sc_ptd, (unsigned char*)APDU_selectDF, sizeof(APDU_selectDF));
 	if (ret) goto err;
 
-	Sleep(TIMEOUT * 30);
-
-	ret = sc_read(&sc_ptd, (unsigned char *) sc_buf1, BUFLEN, 0, &len_sc_buf1);
+	ret = sc_read(&sc_ptd, (unsigned char *) sc_buf1, BUFLEN, 2, &len_sc_buf1);
 	if (ret) goto err;
 	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
-
-	Sleep(TIMEOUT);
-
-	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 0, &len_sc_buf1);
-	if (ret) goto err;
-	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
-
-	Sleep(TIMEOUT);
-
-	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 0, &len_sc_buf1);
-	if (ret) goto err;
-	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
-
-	Sleep(TIMEOUT);
-
-	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 0, &len_sc_buf1);
-	if (ret) goto err;
-	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
-
-	Sleep(TIMEOUT);
-
-	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 0, &len_sc_buf1);
-	if (ret) goto err;
-	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
-
-	Sleep(TIMEOUT);
 
 	ret = sc_write1(&sc_ptd, (unsigned char*)APDU_getResponse_selectDF, APDU_getResponse_selectDF[APDU_POS_LEN], NULL);
 	if (ret) goto err;
-	//ret = sc_write2(&sc_ptd, (unsigned char*)APDU_getResponse_selectDF, sizeof(APDU_getResponse_selectDF));
-	//if (ret) goto err;
 
-	//Sleep(TIMEOUT);
-
-	ret = sc_read(&sc_ptd, sc_buf1, BUFLEN, 0, &len_sc_buf1);
+	ret = sc_read(&sc_ptd, sc_buf1, BUFLEN, 0x0A, &len_sc_buf1);
 	if (ret) goto err;
 	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
 
-	Sleep(TIMEOUT);
+	/* 2. initialize DRBG */
 
-	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 0, &len_sc_buf1);
+	ret = sc_write2(&sc_ptd, (unsigned char*)APDU_CtrDrbgClearInternalState, sizeof(APDU_CtrDrbgClearInternalState));
 	if (ret) goto err;
-	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
 
-	Sleep(TIMEOUT);
-
-	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 0, &len_sc_buf1);
-	if (ret) goto err;
-	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
-
-	Sleep(TIMEOUT);
-
-	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 0, &len_sc_buf1);
-	if (ret) goto err;
-	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
-
-	Sleep(TIMEOUT);
-
-	ret = sc_read(&sc_ptd, sc_buf1, BUFLEN, 0, &len_sc_buf1);
+	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 2, &len_sc_buf1);
 	if (ret) goto err;
 	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
 
 	ret = sc_write2(&sc_ptd, (unsigned char*)APDU_CtrDrbgInstantiate, sizeof(APDU_CtrDrbgInstantiate));
 	if (ret) goto err;
 
-	Sleep(TIMEOUT);
-
-	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 0, &len_sc_buf1);
+	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 2, &len_sc_buf1);
 	if (ret) goto err;
 	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
 
-	Sleep(TIMEOUT);
+	/* 3. generate ECDH keytoken */
+
+	ret = sc_write2(&sc_ptd, (unsigned char*)APDU_EcdhKeytokenGen, sizeof(APDU_EcdhKeytokenGen));
+	if (ret) goto err;
+
+	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 2, &len_sc_buf1);
+	if (ret) goto err;
+	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
+
+	ret = sc_write2(&sc_ptd, (unsigned char*)APDU_readBinary_0x60, sizeof(APDU_readBinary_0x60));
+	if (ret) goto err;
+
+	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 0x60, &len_sc_buf1);
+	if (ret) goto err;
+	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
+
+	memcpy(pubkey, sc_buf1 + 1, 0x60); // X, Y, prikey
+	memcpy(seskey, sc_buf1 + 1, 0x40); // X, Y
+
+	/* 4. generate ECDH session key */
+	//APDU_updateBinary_0x60[6] = 0;
+	memcpy(APDU_updateBinary_0x60 + 5 + 0x00, seskey + 0x00, 0x40);
+	memcpy(APDU_updateBinary_0x60 + 5 + 0x40, pubkey + 0x40, 0x20);
+
+	//ret = sc_write2(&sc_ptd, (unsigned char*)APDU_updateBinary_0x60, sizeof(APDU_updateBinary_0x60));
+	//if (ret) goto err;
+
+	//Sleep(TIMEOUT);
+
+	//ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 2, &len_sc_buf1);
+	//if (ret) goto err;
+	//sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
+
+	ret = sc_write2(&sc_ptd, (unsigned char*)APDU_readBinary_0x60, sizeof(APDU_readBinary_0x60));
+	if (ret) goto err;
+
+	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 0x60, &len_sc_buf1);
+	if (ret) goto err;
+	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
+
+	pt_set_armed(&sc_ptd, TRUE);
+	ret = sc_write2(&sc_ptd, (unsigned char*)APDU_EcdhSesKeyGen, sizeof(APDU_EcdhSesKeyGen));
+	if (ret) goto err;
+
+	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 2, &len_sc_buf1);
+	if (ret) goto err;
+	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
+
+	ret = sc_write2(&sc_ptd, (unsigned char*)APDU_readBinary_0x40, sizeof(APDU_readBinary_0x40));
+	if (ret) goto err;
+
+	ret = sc_read(&sc_ptd, (unsigned char*)sc_buf1, BUFLEN, 0x40, &len_sc_buf1);
+	if (ret) goto err;
+	sc_card_print_RESPONSE(sc_buf1, len_sc_buf1);
+
+	memcpy(seskey, sc_buf1 + 1, 0x40); // X, Y
+
+	//pt_set_armed(&sc_ptd, TRUE);
 
 	ret = sc_card_power_off();
 	if (ret) goto err;

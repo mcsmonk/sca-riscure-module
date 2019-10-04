@@ -19,14 +19,15 @@
 #define FILE_DIR			".\\trace"
 
 #define FILE_PREFIX			"sca-sh-"
+#define FILE_PREFIX_KEY		FILE_PREFIX##"key"
 #define FILE_PREFIX_PT		FILE_PREFIX##"plaintext"
 #define FILE_PREFIX_CT		FILE_PREFIX##"ciphertext"
 #define FILE_PREFIX_LOG		FILE_PREFIX##"log"
 #define FILE_PREFIX_TR		FILE_PREFIX##"trace"
 
-#define TIMEOUT				200
-#define TIMEOUT_RXTX		200
-#define TIMEOUT_ATR			200
+#define TIMEOUT				0
+#define TIMEOUT_RXTX			1200
+#define TIMEOUT_ATR			400
 
 //////////////////////////////////////////////////////////////
 
