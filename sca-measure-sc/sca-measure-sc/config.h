@@ -24,7 +24,8 @@
 #define FILE_PREFIX_LOG		FILE_PREFIX##"log"
 #define FILE_PREFIX_TR		FILE_PREFIX##"trace"
 
-#define TIMEOUT				800
+#define TIMEOUT				200
+#define TIMEOUT_RXTX		200
 #define TIMEOUT_ATR			200
 
 //////////////////////////////////////////////////////////////

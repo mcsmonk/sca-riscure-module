@@ -15,8 +15,8 @@ BOOL sc_flag_rx_error = FALSE;
 BOOL sc_flag_tx_error = FALSE;
 unsigned int sc_tx_error_index = FALSE;
 
-double sc_v = 5.0, sc_vmin, sc_vmax, sc_vstep;
-double sc_f = 1.0, sc_fmin, sc_fmax, sc_fstep;
+double sc_v = 5, sc_vmin, sc_vmax, sc_vstep;
+double sc_f = 4, sc_fmin, sc_fmax, sc_fstep;
 
 unsigned char sc_buf1[BUFLEN];
 unsigned int len_sc_buf1;
@@ -152,61 +152,26 @@ err:
 
 int sc_card_setting()
 {
-	//sc_ret = pt_set_f_d(&sc_ptd, 372, 1);
-	//if (sc_ret != PT_OK) {
-	//	sca_fprintf(fd_log, "Error : pt_set_f_d [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
-	//	goto err;
-	//}
-	//sca_fprintf(fd_log, "[setting] F/D to 372\n");
+	sc_ret = pt_set_f_d(&sc_ptd, 372, 1);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_set_f_d [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[setting] F/D to 372\n");
 
-	//sc_ret = pt_set_cgt(&sc_ptd, 12);
-	//if (sc_ret != PT_OK) {
-	//	sca_fprintf(fd_log, "Error : pt_set_cgt [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
-	//	goto err;
-	//}
-	//sca_fprintf(fd_log, "[setting] CGT to 12\n");
+	sc_ret = pt_set_cgt(&sc_ptd, 12);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_set_cgt [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[setting] CGT to 12\n");
 
-	//sc_ret = pt_set_communication_channel(&sc_ptd, SMARTCARD);
-	//if (sc_ret != PT_OK) {
-	//	sca_fprintf(fd_log, "Error : pt_set_communication_channel [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
-	//	goto err;
-	//}
-	//sca_fprintf(fd_log, "[setting] Select smart card transceiver as communication channel\n");
-
-	//sc_ret = pt_enable_tx_error_checking(&sc_ptd, FALSE);
-	//if (sc_ret != PT_OK) {
-	//	sca_fprintf(fd_log, "Error : pt_enable_tx_error_checking [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
-	//	goto err;
-	//}
-	//sca_fprintf(fd_log, "[setting] Stop transmitter looking at the NACK sent from smart card\n");
-
-	//sc_ret = pt_enable_rx_error_signaling(&sc_ptd, FALSE);
-	//if (sc_ret != PT_OK) {
-	//	sca_fprintf(fd_log, "Error : pt_enable_rx_error_signaling [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
-	//	goto err;
-	//}
-	//sca_fprintf(fd_log, "[setting] Stop receiver signaling a NACK to smart card in case of parity error\n");
-
-	//sc_ret = pt_set_tx_error_handling(&sc_ptd, CONTINUE);
-	//if (sc_ret != PT_OK) {
-	//	sca_fprintf(fd_log, "Error : pt_set_tx_error_handling [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
-	//	goto err;
-	//}
-	//sca_fprintf(fd_log, "[setting] Continue transmission if an NACK is signaled from smart card\n");
-
-	//sc_ret = pt_set_read_timeout(&sc_ptd, TIMEOUT);
-	//if (sc_ret != PT_OK) {
-	//	sca_fprintf(fd_log, "Error : pt_set_read_timeout [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
-	//	goto err;
-	//}
-	//sca_fprintf(fd_log, "[setting] timeout %d\n", TIMEOUT);
-
-	//sc_ret = pt_set_write_timeout(&sc_ptd, TIMEOUT);
-	//if (sc_ret != PT_OK) {
-	//	sca_fprintf(fd_log, "Error : pt_set_write_timeout [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
-	//	goto err;
-	//}
-	//sca_fprintf(fd_log, "[setting] timeout %d\n", TIMEOUT);
+	sc_ret = pt_set_communication_channel(&sc_ptd, SMARTCARD);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_set_communication_channel [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[setting] Select smart card transceiver as communication channel\n");
 
 	sc_ret = pt_set_gain(&sc_ptd, 100);
 	if (sc_ret != PT_OK) {
@@ -278,6 +243,20 @@ int sc_card_setting2()
 	}
 	sca_fprintf(fd_log, "[setting] Abort transmission as soon as a NACK is detected\n");
 
+	sc_ret = pt_set_read_timeout(&sc_ptd, TIMEOUT_RXTX);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_set_read_timeout [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[setting] pt_set_read_timeout %d\n", TIMEOUT_RXTX);
+
+	sc_ret = pt_set_write_timeout(&sc_ptd, TIMEOUT_RXTX);
+	if (sc_ret != PT_OK) {
+		sca_fprintf(fd_log, "Error : pt_set_write_timeout [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
+		goto err;
+	}
+	sca_fprintf(fd_log, "[setting] pt_set_write_timeout %d\n", TIMEOUT_RXTX);
+
 	return 0;
 err:
 	return -1;
@@ -309,7 +288,7 @@ int sc_card_power_on()
 	if (sc_ret == PT_OK) {
 		Sleep(TIMEOUT_ATR);
 
-		sc_read(&sc_ptd, sc_buf1, 0, &len_sc_buf1);
+		sc_read(&sc_ptd, sc_buf1, BUFLEN, 0, &len_sc_buf1);
 		if (sc_ret_rx != PT_OK) {
 			sca_fprintf(fd_log, "Error : pt_get_rx_error_status [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
 			goto err;
@@ -382,7 +361,7 @@ int sc_card_warmreset()
 	if (sc_ret == PT_OK) {
 		Sleep(TIMEOUT_ATR);
 
-		sc_read(&sc_ptd, sc_buf1, 0, &len_sc_buf1);
+		sc_read(&sc_ptd, sc_buf1, BUFLEN, 0, &len_sc_buf1);
 		if (sc_ret_rx != PT_OK) {
 			sca_fprintf(fd_log, "Error : pt_get_rx_error_status [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
 			goto err;
@@ -413,7 +392,7 @@ int sc_card_coldreset()
 		sca_fprintf(fd_log, "Error : pt_smartcard_warm_reset [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
 		goto err;
 	}
-	sca_fprintf(fd_log, "now warm reset\n");
+	sca_fprintf(fd_log, "now cold reset\n");
 
 	sc_ret = pt_is_smartcard_powered(&sc_ptd, &sc_flag_poweron);
 	if (sc_ret != PT_OK) {
@@ -425,7 +404,7 @@ int sc_card_coldreset()
 	if (sc_ret == PT_OK) {
 		Sleep(TIMEOUT_ATR);
 
-		sc_read(&sc_ptd, sc_buf1, 0, &len_sc_buf1);
+		sc_read(&sc_ptd, sc_buf1, BUFLEN, 0, &len_sc_buf1);
 		if (sc_ret_rx != PT_OK) {
 			sca_fprintf(fd_log, "Error : pt_get_rx_error_status [%02X]  // %s ( %d line )\n", sc_ret, __FILE__, __LINE__);
 			goto err;
@@ -533,38 +512,45 @@ void sc_card_print_RESPONSE(unsigned char buf[], int buf_len)
 	sca_fprintf(fd_log, "\n");
 }
 
-int sc_read(pt_device* sc_ptd, unsigned char* response, unsigned int response_len, unsigned int* actual_response_len)
+int sc_read(pt_device* sc_ptd, unsigned char* buf, unsigned int buflen, unsigned int response_len, unsigned int* actual_response_len)
 {
-	memset(response, 0, sizeof(response));
-	sc_ret = pt_read(sc_ptd, response, response_len, actual_response_len);
+	memset(buf, 0, buflen);
+	sc_ret = pt_read(sc_ptd, buf, response_len, actual_response_len);
 	sc_ret_rx = pt_get_rx_error_status(sc_ptd, &sc_flag_rx_error);
+	sc_ret_tx = pt_get_tx_error_status(sc_ptd, &sc_flag_tx_error, &sc_tx_error_index);
 
-	return sc_ret | sc_ret_rx;
+	return sc_ret | sc_ret_rx | sc_ret_tx;
 }
 
 int sc_write1(pt_device* sc_ptd, unsigned char* apdu_wo_len, unsigned char apdu_len, unsigned char* apdu_data)
 {
 	memcpy(sc_buf2, apdu_wo_len, 4);
-	sc_buf2[4] = apdu_len;
-	if (apdu_data != NULL)
+	sc_buf2[APDU_POS_LEN] = apdu_len;
+	if (apdu_data != NULL) {
 		memcpy(sc_buf2 + 5, apdu_data, apdu_len);
+		sc_ret = pt_write(sc_ptd, sc_buf2, 5 + apdu_len);
+	}
+	else {
+		sc_ret = pt_write(sc_ptd, sc_buf2, 5);
+	}
 
-	sc_ret = pt_write(sc_ptd, sc_buf2, 5 + apdu_len);
+	sc_ret_rx = pt_get_rx_error_status(sc_ptd, &sc_flag_rx_error);
 	sc_ret_tx = pt_get_tx_error_status(sc_ptd, &sc_flag_tx_error, &sc_tx_error_index);
 
 	if (apdu_data != NULL && 4 + apdu_len > 5) sc_card_print_APDU_Lc(sc_buf2, 5 + apdu_len);
-	else sc_card_print_APDU_Le(sc_buf2, 5 + apdu_len);
+	else sc_card_print_APDU_Le(sc_buf2, 5);
 
-	return sc_ret | sc_ret_rx;
+	return sc_ret | sc_ret_rx | sc_ret_tx;
 }
 
 int sc_write2(pt_device* sc_ptd, unsigned char* apdu, unsigned int len)
 {
 	sc_ret = pt_write(sc_ptd, apdu, len);
+	sc_ret_rx = pt_get_rx_error_status(sc_ptd, &sc_flag_rx_error);
 	sc_ret_tx = pt_get_tx_error_status(sc_ptd, &sc_flag_tx_error, &sc_tx_error_index);
 
 	if (len > 5) sc_card_print_APDU_Lc(apdu, len);
 	else sc_card_print_APDU_Le(apdu, len);
 
-	return sc_ret | sc_ret_rx;
+	return sc_ret | sc_ret_rx | sc_ret_tx;
 }

@@ -5,6 +5,13 @@
 #include "sca.h"
 #include "powertracer_api.h"
 
+
+#define APDU_POS_CLS 0x00
+#define APDU_POS_INS 0x01
+#define APDU_POS_P1  0x02
+#define APDU_POS_P2  0x03
+#define APDU_POS_LEN 0x04
+
 #define BUFLEN 1024
 
 extern pt_device sc_ptd;
@@ -32,7 +39,7 @@ void sc_card_print_APDU_Le(unsigned char buf[], int buf_len);
 void sc_card_print_RESPONSE(unsigned char buf[], int buf_len);
 void sc_card_print_ATR(unsigned char buf[], int buf_len);
 
-int sc_read(pt_device* sc_ptd, unsigned char* response, unsigned int response_len, unsigned int* actual_response_len);
+int sc_read(pt_device* sc_ptd, unsigned char* buf, unsigned int buflen, unsigned int response_len, unsigned int* actual_response_len);
 int sc_write1(pt_device* sc_ptd, unsigned char* apdu_wo_len, unsigned char apdu_len, unsigned char* apdu_data);
 int sc_write2(pt_device* sc_ptd, unsigned char* apdu, unsigned int len);
 

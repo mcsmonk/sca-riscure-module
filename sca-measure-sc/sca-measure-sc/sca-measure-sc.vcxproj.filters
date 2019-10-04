@@ -41,9 +41,6 @@
     <ClInclude Include="sca.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="config_APDU.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="powertracer_api.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
